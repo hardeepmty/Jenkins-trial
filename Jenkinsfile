@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    options {
-        disableConcurrentBuilds()
-        skipDefaultCheckout(true)
-    }
-
     stages {
         stage('Clean Workspace') {
             steps {
@@ -21,23 +16,24 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh '''
-                echo "Current directory: $(pwd)"
-                echo "Listing files:"
-                ls -l
-                echo "Navigating to Jenkins-trial directory:"
-                cd Jenkins-trial || exit 1
-                echo "Listing files in Jenkins-trial:"
-                ls -l
-                cd node-nginx-app || exit 1
-                npm install
-                '''
+                dir('node-nginx-app') {
+                    sh '''
+                    echo Current directory: $(pwd)
+                    echo Installing dependencies...
+                    npm install
+                    '''
+                }
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'cd Jenkins-trial/node-nginx-app && npm test'
+                dir('node-nginx-app') {
+                    sh '''
+                    echo Running tests...
+                    npm test
+                    '''
+                }
             }
         }
 
@@ -45,11 +41,11 @@ pipeline {
             steps {
                 sshagent(['4db5a6ac-d1ac-47bf-92ad-643c244be927']) { 
                     sh '''
-                    ssh -o StrictHostKeyChecking=no ubuntu@3.107.228.31 <<EOF
-                        cd ~/Jenkins-trial/node-nginx-app
+                    ssh ubuntu@3.107.228.31 <<EOF
+                        cd ~/node-nginx-app
                         git pull origin main
                         npm install
-                        pm2 startOrReload server.js --name node-nginx-app || pm2 start server.js --name node-nginx-app
+                        pm2 restart server.js || pm2 start server.js
                     EOF
                     '''
                 }
